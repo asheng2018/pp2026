@@ -50,10 +50,14 @@ func (d *EventDispatcher) Dispatch(ctx context.Context, gateway, eventType strin
 
 	// Also process synchronously if handler exists
 	if handler, ok := d.handlers[eventType]; ok {
+		// Clone context with timeout to prevent goroutine leaks
 		go func() {
-			ctx := context.Background()
-			if err := handler.Handle(ctx, evt); err != nil {
+			bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if err := handler.Handle(bgCtx, evt); err != nil {
 				log.Error().Err(err).Str("event_type", eventType).Msg("handler error")
+				// Publish to retry queue for later reprocessing
+				d.queue.Publish("events.retry."+eventType, evt)
 			}
 		}()
 	}

@@ -54,7 +54,8 @@ func (oc *OriginChecker) IsAllowed(origin string) bool {
 		return true
 	}
 	for domain := range oc.allowedOrigins {
-		if strings.HasSuffix(host, "."+domain) {
+		// Must match exactly or be a subdomain (e.g., sub.example.com matches .example.com)
+		if host == domain || strings.HasSuffix(host, "."+domain) {
 			return true
 		}
 	}

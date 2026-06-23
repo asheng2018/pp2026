@@ -80,11 +80,22 @@ func (c *CurrencyConverter) fetchRate(ctx context.Context, from, to string) (dec
 }
 
 func (c *CurrencyConverter) RefreshRates(ctx context.Context) error {
-	// Refresh all known currency pairs
+	// Refresh all known base currency rates from providers
 	for _, base := range []string{"USD", "EUR", "GBP"} {
-		_, err := c.fetchRate(ctx, base, "")
-		if err != nil {
-			log.Warn().Str("base", base).Err(err).Msg("rate refresh failed")
+		for _, prov := range c.providers {
+			rates, err := prov.FetchRates(ctx, base)
+			if err != nil {
+				log.Warn().Str("provider", prov.Name()).Str("base", base).Err(err).Msg("rate refresh failed")
+				continue
+			}
+			c.mu.Lock()
+			if c.rates[base] == nil {
+				c.rates[base] = make(map[string]decimal.Decimal)
+			}
+			for k, v := range rates {
+				c.rates[base][k] = v
+			}
+			c.mu.Unlock()
 		}
 	}
 	return nil

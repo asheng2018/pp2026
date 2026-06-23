@@ -40,29 +40,45 @@ func HasBlockedHeaders(headers http.Header) bool {
 	return false
 }
 
-func StripTrackingParams(urlStr string) string {
+func StripTrackingParams(rawURL string) string {
 	trackingParams := []string{
 		"utm_source", "utm_medium", "utm_campaign",
 		"utm_content", "utm_term", "fbclid", "gclid", "ref",
 	}
 	for _, p := range trackingParams {
-		prefix := p + "="
-		if idx := strings.Index(urlStr, prefix); idx >= 0 {
-			end := strings.Index(urlStr[idx:], "&")
-			if end < 0 {
-				if idx > 0 {
-					urlStr = urlStr[:idx-1]
-				} else {
-					urlStr = urlStr[:idx]
-				}
-				break
-			}
-			if idx > 0 {
-				urlStr = urlStr[:idx] + urlStr[idx+end+1:]
-			} else {
-				urlStr = urlStr[idx+end+1:]
+		rawURL = stripParam(rawURL, p)
+	}
+	return rawURL
+}
+
+// stripParam removes a single query parameter and its value from a URL.
+func stripParam(rawURL, param string) string {
+	prefix := param + "="
+	for {
+		idx := strings.Index(rawURL, prefix)
+		if idx < 0 {
+			return rawURL
+		}
+		// Find the start of this parameter (after ? or &)
+		paramStart := idx
+		if idx > 0 && rawURL[idx-1] == '?' {
+			paramStart = idx
+		} else if idx > 1 && rawURL[idx-2:idx] == "? " {
+			paramStart = idx
+		}
+		// Find the end of this parameter's value
+		end := idx + len(prefix)
+		for end < len(rawURL) && rawURL[end] != '&' {
+			end++
+		}
+		// Remove from rawURL: cut from paramStart to end (inclusive of trailing &)
+		if end < len(rawURL) {
+			rawURL = rawURL[:paramStart] + rawURL[end+1:]
+		} else {
+			rawURL = rawURL[:paramStart]
+			if paramStart > 0 && rawURL[paramStart-1] == '?' {
+				rawURL = rawURL[:paramStart-1]
 			}
 		}
 	}
-	return urlStr
 }

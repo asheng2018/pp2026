@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lib/pq"
+	"github.com/rs/zerolog/log"
 
 	"github.com/ab-payment-system/internal/account/model"
 )
@@ -37,9 +38,15 @@ func (r *AccountRepo) FindByID(ctx context.Context, id string) (*model.Account, 
 		return nil, err
 	}
 
-	json.Unmarshal(limitJSON, &a.LimitConfig)
-	json.Unmarshal(currencies, &a.SupportedCurrencies)
-	json.Unmarshal(countries, &a.SupportedCountries)
+	if err := json.Unmarshal(limitJSON, &a.LimitConfig); err != nil {
+		log.Warn().Err(err).Str("account_id", id).Msg("failed to unmarshal limit config")
+	}
+	if err := json.Unmarshal(currencies, &a.SupportedCurrencies); err != nil {
+		log.Warn().Err(err).Str("account_id", id).Msg("failed to unmarshal currencies")
+	}
+	if err := json.Unmarshal(countries, &a.SupportedCountries); err != nil {
+		log.Warn().Err(err).Str("account_id", id).Msg("failed to unmarshal countries")
+	}
 	return a, nil
 }
 

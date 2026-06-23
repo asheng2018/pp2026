@@ -24,6 +24,10 @@ func (s *WeightedRoundRobin) Select(ctx context.Context, accounts []*AccountInfo
 	for _, a := range accounts {
 		totalW += a.Weight
 	}
+	if totalW == 0 {
+		// All accounts have zero weight — return the first one
+		return accounts[0], nil
+	}
 	pos := int(s.counter.Add(1) % uint64(totalW))
 	for _, a := range accounts {
 		pos -= a.Weight

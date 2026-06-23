@@ -64,7 +64,7 @@ func main() {
 	// Initialize account module
 	accountRepo := accRepo.NewAccountRepo(database.DB)
 	stateManager := state.NewStateManager(redisClient.Client)
-	healthChecker := accHealth.New(redisClient.Client, true, cfg.Risk.MaxConsecutiveFails, 30*time.Minute)
+	healthChecker := accHealth.New(redisClient.Client, true, cfg.Risk.MaxConsecutiveFails, cfg.Risk.DefaultThrottleTTL)
 	accountService := accSvc.NewAccountService(accountRepo, stateManager, healthChecker, nil)
 
 	// Initialize scheduler orchestrator

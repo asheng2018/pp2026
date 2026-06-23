@@ -2,6 +2,7 @@ package alert
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -133,5 +134,5 @@ func (am *AlertManager) GetActiveAlerts() []*Alert {
 }
 
 func generateAlertID() string {
-	return "alert_" + time.Now().Format("20060102150405")
+	return fmt.Sprintf("alert_%s_%d", time.Now().Format("20060102150405"), time.Now().Nanosecond())
 }

@@ -114,9 +114,20 @@ func (sm *StateManager) ReserveAmount(
 	return okVal == 1, msg, nil
 }
 
-// ReleaseAmount decrements the daily amount counter
-func (sm *StateManager) ReleaseAmount(ctx context.Context, amtKey string, amount decimal.Decimal) error {
-	return sm.rdb.IncrByFloat(ctx, amtKey, 0-amount.InexactFloat64()).Err()
+// ReleaseAmount decrements both the daily amount AND count counters.
+// Call this when a reserved allocation is released (e.g. order canceled, payment failed).
+func (sm *StateManager) ReleaseAmount(ctx context.Context, accountID string, amount decimal.Decimal) error {
+	amtKey := fmt.Sprintf("account:daily:amount:%s", accountID)
+	cntKey := fmt.Sprintf("account:daily:count:%s", accountID)
+
+	if err := sm.rdb.IncrByFloat(ctx, amtKey, 0-amount.InexactFloat64()).Err(); err != nil {
+		return err
+	}
+	// Also decrement the daily count so the limit doesn't drift
+	if err := sm.rdb.Decr(ctx, cntKey).Err(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (sm *StateManager) MarkSuccess(ctx context.Context, accountID string) error {

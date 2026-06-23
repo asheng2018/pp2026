@@ -3,6 +3,7 @@ package rule
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -125,11 +126,15 @@ func (re *RuleEngine) evaluateCondition(cond model.Condition, data map[string]in
 }
 
 func compareFloat(value interface{}, target string) int {
-	v := fmt.Sprintf("%v", value)
-	if v == target {
+	vf, err1 := strconv.ParseFloat(fmt.Sprintf("%v", value), 64)
+	tf, err2 := strconv.ParseFloat(target, 64)
+	if err1 != nil || err2 != nil {
+		return 0 // unparseable → treat as equal to avoid false positives
+	}
+	if vf == tf {
 		return 0
 	}
-	if v > target {
+	if vf > tf {
 		return 1
 	}
 	return -1

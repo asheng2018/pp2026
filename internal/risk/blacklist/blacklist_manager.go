@@ -86,15 +86,17 @@ func (bm *BlacklistManager) syncFromRedis() {
 	// Periodic sync from Redis to in-memory cache
 	ticker := time.NewTicker(5 * time.Minute)
 	for range ticker.C {
-		// Sync IP blacklist
+		// Sync IP blacklist - rebuild from scratch to pick up deletions
 		if keys, err := bm.rdb.Keys(context.Background(), "blacklist:ip:*").Result(); err == nil {
 			bm.mu.Lock()
+			newMap := make(map[string]time.Time)
 			for _, k := range keys {
 				ip := strings.TrimPrefix(k, "blacklist:ip:")
 				if ttl, _ := bm.rdb.TTL(context.Background(), k).Result(); ttl > 0 {
-					bm.ipBlacklist[ip] = time.Now().Add(ttl)
+					newMap[ip] = time.Now().Add(ttl)
 				}
 			}
+			bm.ipBlacklist = newMap
 			bm.mu.Unlock()
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/rs/zerolog/log"
 	"github.com/shopspring/decimal"
 
 	"github.com/ab-payment-system/internal/account/health"
@@ -53,9 +54,13 @@ func (s *AccountService) GetOnlineAccounts(ctx context.Context, gateway, merchan
 		// Decrypt credentials into memory
 		if len(a.EncryptedCred) > 0 {
 			secret, err := s.crypto.DecryptString(string(a.EncryptedCred))
-			if err == nil {
+			if err != nil {
+				log.Warn().Err(err).Str("account_id", a.ID).Msg("failed to decrypt credentials")
+			} else {
 				var cred model.Credential
-				if json.Unmarshal([]byte(secret), &cred) == nil {
+				if err := json.Unmarshal([]byte(secret), &cred); err != nil {
+					log.Warn().Err(err).Str("account_id", a.ID).Msg("failed to unmarshal credentials")
+				} else {
 					a.Credential = &cred
 				}
 			}
@@ -104,9 +109,7 @@ func (s *AccountService) ReserveAmount(ctx context.Context, id string, amount de
 }
 
 func (s *AccountService) ReleaseAmount(ctx context.Context, id string, amount decimal.Decimal) error {
-	// Release reservation in Redis
-	amtKey := fmt.Sprintf("account:daily:amount:%s", id)
-	return s.state.ReleaseAmount(ctx, amtKey, amount)
+	return s.state.ReleaseAmount(ctx, id, amount)
 }
 
 func (s *AccountService) MarkSuccess(ctx context.Context, id string) error {
