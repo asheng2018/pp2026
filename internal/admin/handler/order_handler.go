@@ -34,22 +34,19 @@ func (h *OrderHandler) List(w http.ResponseWriter, r *http.Request) {
 	adminID := middleware.GetAdminID(r.Context())
 
 	var rows *sql.Rows
-	var countArgs []interface{}
-	filterClause, _ := buildFilter(status)
+	var err error
 	if status != "" {
 		rows, err = h.db.QueryContext(r.Context(),
 			`SELECT id, order_no, merchant_id, account_id, gateway, amount, currency, status,
 			 customer_email, customer_country, risk_level, risk_score, created_at, updated_at
 			 FROM orders WHERE status = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
 			status, limit, offset)
-		countArgs = []interface{}{status}
 	} else {
 		rows, err = h.db.QueryContext(r.Context(),
 			`SELECT id, order_no, merchant_id, account_id, gateway, amount, currency, status,
 			 customer_email, customer_country, risk_level, risk_score, created_at, updated_at
 			 FROM orders ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
 			limit, offset)
-		countArgs = []interface{}{}
 	}
 	if err != nil {
 		log.Error().Err(err).Str("admin_id", adminID).Msg("failed to list orders")
