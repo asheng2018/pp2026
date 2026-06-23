@@ -52,7 +52,7 @@ func (s *AccountService) GetOnlineAccounts(ctx context.Context, gateway, merchan
 		a.Runtime = rt
 
 		// Decrypt credentials into memory
-		if len(a.EncryptedCred) > 0 {
+		if s.crypto != nil && len(a.EncryptedCred) > 0 {
 			secret, err := s.crypto.DecryptString(string(a.EncryptedCred))
 			if err != nil {
 				log.Warn().Err(err).Str("account_id", a.ID).Msg("failed to decrypt credentials")
