@@ -28,7 +28,7 @@ local endOfDay = 86400 - (now[1] % 86400)
 redis.call('EXPIRE', amt_key, endOfDay)
 redis.call('EXPIRE', cnt_key, endOfDay)
 
-if current_amt > daily_max then
+if tonumber(current_amt) > daily_max then
   redis.call('INCRBYFLOAT', amt_key, 0 - amount)
   redis.call('DECR', cnt_key)
   return {0, 'daily_amount_exceeded'}
