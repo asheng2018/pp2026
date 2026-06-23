@@ -190,7 +190,7 @@ func main() {
 			return
 		}
 		json.NewEncoder(w).Encode(result)
-	}).Methods("POST")
+	}).Methods("POST", "OPTIONS")
 
 	api.HandleFunc("/release", func(w http.ResponseWriter, r *http.Request) {
 		var req struct{ OrderID, MerchantID string }
