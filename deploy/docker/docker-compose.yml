@@ -1,0 +1,129 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ab_payment
+      POSTGRES_USER: abpay
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-abpay_secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../sql/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U abpay -d ab_payment"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis_secret}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  nats:
+    image: nats:2.10-alpine
+    command: "-js -m 8222"
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  orchestrator:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.orchestrator
+    environment:
+      ENV: production
+      SERVER_PORT: "8080"
+      GRPC_PORT: "9090"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: abpay
+      DB_PASSWORD: ${DB_PASSWORD:-abpay_secret}
+      DB_NAME: ab_payment
+      DB_SSLMODE: disable
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
+      NATS_URL: nats://nats:4222
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.gateway
+    environment:
+      ENV: production
+      SERVER_PORT: "8080"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: abpay
+      DB_PASSWORD: ${DB_PASSWORD:-abpay_secret}
+      DB_NAME: ab_payment
+      DB_SSLMODE: disable
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+    ports:
+      - "8081:8080"
+    depends_on:
+      orchestrator:
+        condition: service_started
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+  admin-ui:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.admin-ui
+    ports:
+      - "${ADMIN_UI_PORT:-8088}:80"
+    depends_on:
+      - orchestrator
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
