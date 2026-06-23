@@ -194,7 +194,9 @@ function ab_bridge_filter_gateways($gateways) {
 // ============================================================
 add_action('wp_enqueue_scripts', 'ab_bridge_enqueue_scripts');
 function ab_bridge_enqueue_scripts() {
-    if (!is_checkout() || is_wc_endpoint_url('order-received')) {
+    // Load on checkout page, checkout-2 page, or any page with [woocommerce_checkout] shortcode
+    $is_custom_checkout = is_page('checkout-2') || is_page('checkout');
+    if ((!is_checkout() && !$is_custom_checkout) || is_wc_endpoint_url('order-received')) {
         return;
     }
 
