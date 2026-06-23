@@ -165,6 +165,8 @@ func main() {
 
 	// Payment allocation (public — called by A-site plugin via API key)
 	api.HandleFunc("/allocate", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		if r.Method == "OPTIONS" { w.WriteHeader(200); return }
 		var req struct {
 			OrderID    string `json:"order_id"`
 			Amount     string `json:"amount"`
