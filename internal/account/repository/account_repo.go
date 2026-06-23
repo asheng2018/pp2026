@@ -57,7 +57,7 @@ func (r *AccountRepo) FindOnline(ctx context.Context, gateway, merchantID string
 		       tags, supported_currencies, supported_countries,
 		       created_at, updated_at
 		FROM payment_accounts
-		WHERE gateway = $1 AND (merchant_id = $2 OR $2 = '') AND status = 'online'
+		WHERE gateway = $1 AND (merchant_id = $2 OR $2 = '00000000-0000-0000-0000-000000000000') AND status = 'online'
 		ORDER BY priority DESC, weight DESC`, gateway, merchantID)
 	if err != nil {
 		return nil, err
