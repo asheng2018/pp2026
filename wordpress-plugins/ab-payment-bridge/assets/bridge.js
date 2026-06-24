@@ -1,73 +1,37 @@
 /**
- * AB Payment Bridge v2 — Frontend SDK
- * Loaded on every page. Only activates when ab_pay URL param is present.
+ * AB Payment Bridge v2.1 — Frontend SDK
+ * Detects ab_pay URL param and opens B-site payment iframe.
  */
-(function($, AB) {
+(function($,AB){
     'use strict';
+    var p=new URLSearchParams(window.location.search);
+    var tok=p.get('ab_pay');
+    if(!tok)return;
 
-    // Check if ab_pay param exists in current URL
-    var params = new URLSearchParams(window.location.search);
-    var payToken = params.get('ab_pay');
-    if (!payToken) return; // No payment hash, do nothing
+    $('.woocommerce').css({visibility:'hidden',height:0,overflow:'hidden'});
+    $('header,footer,.site-header,.site-footer').hide();
 
-    var orderId   = params.get('ab_order') || '';
-    var amount    = params.get('ab_amount') || '';
-    var gateway   = params.get('ab_gateway') || AB.gateway;
+    console.log('[AB] Loading payment:', p.get('ab_order'));
 
-    // 1. Hide WooCommerce default content
-    $('.woocommerce').css({visibility:'hidden', height:0, overflow:'hidden'});
-    $('header, footer, .site-header, .site-footer').hide();
+    var ifr=document.createElement('iframe');
+    ifr.src=(AB.bSite||'').replace(/\/+$/,'')+'/pay/'+tok;
+    ifr.sandbox='allow-scripts allow-forms allow-same-origin allow-top-navigation allow-popups';
+    ifr.setAttribute('referrerpolicy','no-referrer');
+    ifr.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:2147483647;background:#fff;';
+    document.body.appendChild(ifr);
 
-    // 2. Create payment iframe
-    console.log('[AB Bridge] Loading payment for order:', orderId);
-
-    var iframe = document.createElement('iframe');
-    iframe.id   = 'ab-pay-iframe';
-    var bSite   = AB.bSite.replace(/\/+$/, '');
-
-    // Construct B-site payment URL
-    iframe.src    = bSite + '/pay/' + encodeURIComponent(payToken);
-    iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-same-origin allow-top-navigation allow-popups');
-    iframe.setAttribute('referrerpolicy', 'no-referrer');
-    iframe.setAttribute('allow', 'payment');
-    iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:2147483647;background:#fff;';
-    document.body.appendChild(iframe);
-
-    // 3. Listen for payment result from B-site iframe
-    window.addEventListener('message', function(ev) {
-        // Verify origin is B-site
-        if (ev.origin.indexOf(AB.bSite.replace(/^https?:\/\//,'')) === -1) return;
-
-        var msg = ev.data || {};
-        switch (msg.type) {
-            case 'IFRAME_READY':
-                console.log('[AB Bridge] B-site ready');
-                break;
-
-            case 'PAYMENT_COMPLETED':
-                console.log('[AB Bridge] Payment complete');
-                // Redirect to order received page
-                window.location.href = AB.bSite + '/checkout/order-received/' + orderId + '/?key=' + (msg.data.orderKey || '');
-                break;
-
-            case 'PAYMENT_FAILED':
-                console.log('[AB Bridge] Payment failed:', msg.data);
-                iframe.remove();
-                $('.woocommerce').css({visibility:'visible', height:'auto', overflow:'visible'});
-                $('header, footer').show();
-                alert('Payment was not completed. Please try again.');
-                // Remove ab_pay from URL so user can retry
-                history.replaceState(null, '', window.location.pathname);
-                break;
-
-            case 'PAYMENT_CANCELED':
-                console.log('[AB Bridge] Payment canceled');
-                iframe.remove();
-                $('.woocommerce').css({visibility:'visible', height:'auto', overflow:'visible'});
-                $('header, footer').show();
-                history.replaceState(null, '', window.location.pathname);
-                break;
+    window.addEventListener('message',function(ev){
+        if(ev.origin.indexOf((AB.bSite||'').replace(/^https?:\/\//,''))===-1)return;
+        var m=ev.data||{};
+        console.log('[AB] msg:',m.type);
+        if(m.type==='PAYMENT_COMPLETED'){
+            window.location.href=window.location.origin+'/checkout/order-received/'+(p.get('ab_order')||'')+'/';
+        }else if(m.type==='PAYMENT_FAILED'||m.type==='PAYMENT_CANCELED'){
+            ifr.remove();
+            $('.woocommerce').css({visibility:'visible',height:'auto',overflow:'visible'});
+            $('header,footer').show();
+            history.replaceState(null,'',window.location.pathname);
+            if(m.type==='PAYMENT_FAILED')alert('Payment failed. Please try again.');
         }
     });
-
-})(jQuery, window.AB || {});
+})(jQuery,window.AB||{});
