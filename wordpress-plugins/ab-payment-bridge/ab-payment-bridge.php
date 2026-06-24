@@ -48,11 +48,12 @@ add_filter('woocommerce_payment_gateways', function($gateways) {
     return $gateways;
 });
 
-// Keep only AB Gateway on checkout
+// Keep only AB Gateway on checkout — but also show others if AB is not available
 add_filter('woocommerce_available_payment_gateways', function($gateways) {
     if (isset($gateways['ab_gateway'])) {
         return ['ab_gateway' => $gateways['ab_gateway']];
     }
+    // If AB gateway is not in the list (e.g. options not configured), return all gateways
     return $gateways;
 });
 
