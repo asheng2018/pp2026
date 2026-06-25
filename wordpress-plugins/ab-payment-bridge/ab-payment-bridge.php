@@ -21,6 +21,11 @@ function ab_init_gateway() {
             $this->title        = 'Pay with Card / PayPal';
             $this->has_fields   = false;
             $this->supports     = ['products'];
+            $this->enabled      = 'yes';  // Always enabled, no settings needed
+        }
+
+        public function is_available() {
+            return true;
         }
 
         public function process_payment($order_id) {
