@@ -14,7 +14,7 @@
     $('header,footer,.site-header,.site-footer').hide();
 
     var ifr=document.createElement('iframe');
-    ifr.src=AB.bSite.replace(/\/+$/,'')+'/pay/'+tok;
+    ifr.src=AB.bSite.replace(/\/+$/,'')+'/pay/'+tok+'?amount='+(p.get('ab_amount')||'0');
     ifr.sandbox='allow-scripts allow-forms allow-same-origin allow-top-navigation allow-popups';
     ifr.referrerPolicy='no-referrer';
     ifr.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:2147483647;background:#fff;';
