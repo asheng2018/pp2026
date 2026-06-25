@@ -88,10 +88,7 @@ function ab_init_gateway() {
 
     // Show only AB Gateway when available
     add_filter('woocommerce_available_payment_gateways', function($gateways) {
-        if (isset($gateways['ab_gateway'])) {
-            return ['ab_gateway' => $gateways['ab_gateway']];
-        }
-        return $gateways;
+        return $gateways; // DEBUG: remove filter effect entirely
     });
 }
 
