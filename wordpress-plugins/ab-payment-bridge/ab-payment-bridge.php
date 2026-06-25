@@ -2,13 +2,13 @@
 /**
  * Plugin Name: AB Payment Bridge
  * Description: Connects WooCommerce to AB Payment Gateway System
- * Version: 2.1.0
+ * Version: 3.0.0
  */
 
 if (!defined('ABSPATH')) exit;
 
 // ============================================================
-// WooCommerce Payment Gateway Class (inline to avoid require_once issues)
+// 1. Register gateway class
 // ============================================================
 add_action('plugins_loaded', 'ab_init_gateway', 20);
 function ab_init_gateway() {
@@ -16,12 +16,19 @@ function ab_init_gateway() {
 
     class WC_AB_Gateway extends WC_Payment_Gateway {
         public function __construct() {
-            $this->id           = 'ab_gateway';
-            $this->method_title = 'AB Payment';
-            $this->title        = 'Pay with Card / PayPal';
-            $this->has_fields   = false;
-            $this->supports     = ['products'];
-            $this->enabled      = 'yes';  // Always enabled, no settings needed
+            $this->id                 = 'ab_gateway';
+            $this->method_title       = 'AB Payment';
+            $this->method_description = 'Pay securely via our partner gateway';
+            $this->title              = 'Pay with Card / PayPal';
+            $this->has_fields         = false;
+            $this->supports           = ['products'];
+            $this->enabled            = 'yes';
+            $this->init_settings();
+        }
+
+        public function init_settings() {
+            parent::init_settings();
+            $this->enabled = 'yes';
         }
 
         public function is_available() {
@@ -65,9 +72,11 @@ function ab_init_gateway() {
             }
 
             update_post_meta($order_id, '_ab_pay_token', $body['PayToken']);
-            $order->update_status('pending','AB Payment: '.substr($body['PayToken'],0,12).'...');
+            $order->update_status('pending','AB Payment token: '.substr($body['PayToken'],0,12));
             wc_reduce_stock_levels($order_id);
 
+            // Redirect to checkout-2 page with ab_pay param
+            $checkout_url = home_url('/checkout-2/');
             return [
                 'result'   => 'success',
                 'redirect' => add_query_arg([
@@ -75,30 +84,27 @@ function ab_init_gateway() {
                     'ab_order'   => $order_id,
                     'ab_amount'  => $order->get_total(),
                     'ab_gateway' => $body['Gateway'] ?? 'paypal',
-                ], wc_get_checkout_url()),
+                ], $checkout_url),
             ];
         }
     }
 
-    // Register gateway class
+    // Register the gateway class with WooCommerce
     add_filter('woocommerce_payment_gateways', function($methods) {
         $methods[] = 'WC_AB_Gateway';
         return $methods;
     });
 
-    // Show only AB Gateway when available
-    add_filter('woocommerce_available_payment_gateways', function($gateways) {
-        return $gateways; // DEBUG: remove filter effect entirely
-    });
+    // IMPORTANT: Do NOT filter available_gateways. Let WooCommerce decide.
 }
 
 // ============================================================
-// Admin Settings
+// 2. Admin Settings
 // ============================================================
 add_action('admin_menu', function() {
     add_options_page('AB Payment', 'AB Payment', 'manage_options', 'ab-payment', function() { ?>
         <div class="wrap">
-        <h1>AB Payment Bridge Settings</h1>
+        <h1>AB Payment Bridge</h1>
         <form method="post" action="options.php">
         <?php settings_fields('ab_options'); ?>
         <table class="form-table">
@@ -123,21 +129,12 @@ add_action('admin_init', function() {
 });
 
 // ============================================================
-// Frontend: Load JS on all pages
+// 3. Always load bridge JS (picks up ab_pay from URL)
 // ============================================================
 add_action('wp_enqueue_scripts', function() {
     if (is_admin()) return;
-    $js = plugin_dir_url(__FILE__).'assets/bridge.js';
-    wp_enqueue_script('ab-bridge', $js, [], '2.1', true);
+    wp_enqueue_script('ab-bridge', plugin_dir_url(__FILE__).'assets/bridge.js', [], '3.0', true);
     wp_localize_script('ab-bridge', 'AB', [
-        'api'      => rtrim(get_option('ab_orchestrator_url',''),'/').'/api/v1/allocate',
-        'merchant' => get_option('ab_merchant_id',''),
-        'apiKey'   => get_option('ab_api_key',''),
-        'bSite'    => rtrim(get_option('ab_b_site_domain',''),'/'),
-        'gateway'  => get_option('ab_default_gateway','paypal'),
+        'bSite'  => rtrim(get_option('ab_b_site_domain',''),'/'),
     ]);
 }, 999);
-
-add_action('send_headers', function() {
-    header('Referrer-Policy: no-referrer');
-});
