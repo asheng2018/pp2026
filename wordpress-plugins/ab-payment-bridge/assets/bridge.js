@@ -1,7 +1,6 @@
 /**
- * AB Payment Bridge v3 — Frontend
+ * AB Payment Bridge v3.1 — Frontend
  * Detects ab_pay URL param and opens B-site payment iframe.
- * Access: https://www.shishengdong.com/checkout-2/?ab_pay=...
  */
 (function($,AB){
     var p=new URLSearchParams(location.search);
@@ -24,13 +23,17 @@
         if(!ev.origin.includes(AB.bSite.replace(/^https?:\/\//,'')))return;
         var m=ev.data||{};
         if(m.type==='PAYMENT_COMPLETED'){
-            window.location.href=location.origin+'/checkout-2/order-received/'+(p.get('ab_order')||'')+'/';
+            window.location.href=location.origin+'/checkout-2/?ab_order='+(p.get('ab_order')||'');
         }else if(m.type==='PAYMENT_FAILED'){
-            ifr.remove();$('.woocommerce').css({visibility:'visible',height:'auto',overflow:'visible'});$('header,footer').show();
+            ifr.remove();
+            $('.woocommerce').css({visibility:'visible',height:'auto',overflow:'visible'});
+            $('header,footer').show();
             history.replaceState(null,'',location.pathname);
             alert('Payment failed. Please try again.');
         }else if(m.type==='PAYMENT_CANCELED'){
-            ifr.remove();$('.woocommerce').css({visibility:'visible',height:'auto',overflow:'visible'});$('header,footer').show();
+            ifr.remove();
+            $('.woocommerce').css({visibility:'visible',height:'auto',overflow:'visible'});
+            $('header,footer').show();
             history.replaceState(null,'',location.pathname);
         }
     });
