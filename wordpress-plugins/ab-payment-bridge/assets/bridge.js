@@ -23,7 +23,7 @@
         if(!ev.origin.includes(AB.bSite.replace(/^https?:\/\//,'')))return;
         var m=ev.data||{};
         if(m.type==='PAYMENT_COMPLETED'){
-            window.location.href=location.origin+'/checkout-2/?ab_order='+(p.get('ab_order')||'');
+            window.location.href = location.origin + '/checkout-2-2/order-received/' + (p.get('ab_order') || '') + '/?key=abpaid';
         }else if(m.type==='PAYMENT_FAILED'){
             ifr.remove();
             $('.woocommerce').css({visibility:'visible',height:'auto',overflow:'visible'});

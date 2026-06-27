@@ -142,7 +142,7 @@ $stripe_key = $stripe_settings['publishable_key'] ?? ($stripe_settings['test_pub
 
         function initPayPal() {
             var script = document.createElement('script');
-            var sdkUrl = 'https://www.paypal.com/sdk/js?client-id=' + PP_CLIENT_ID + '&currency=' + CURRENCY + '&intent=capture&commit=true';
+            var sdkUrl = 'https://www.sandbox.paypal.com/sdk/js?client-id=' + PP_CLIENT_ID + '&currency=' + CURRENCY + '&intent=capture&commit=true';
             if (PP_MERCHANT) sdkUrl += '&merchant-id=' + PP_MERCHANT;
             script.src = sdkUrl;
             script.onload = function() {
