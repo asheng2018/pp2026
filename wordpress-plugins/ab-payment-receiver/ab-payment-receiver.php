@@ -256,6 +256,12 @@ function ab_receiver_register_api_routes() {
         'callback'            => 'ab_receiver_sync_tracking',
         'permission_callback' => 'ab_receiver_verify_request',
     ]);
+
+    register_rest_route('ab-payment/v1', '/webhook', [
+        'methods'             => 'POST',
+        'callback'            => 'ab_receiver_webhook',
+        'permission_callback' => '__return_true',
+    ]);
 }
 
 /**
@@ -336,7 +342,14 @@ function ab_receiver_create_payment($request) {
             return new WP_Error('invalid_gateway', "Unsupported gateway: $gateway", ['status' => 400]);
         }
 
-        return rest_ensure_response([
+	        // Create WooCommerce order for webhook matching
+	        $wc_order = wc_create_order();
+	        $wc_order->set_total($amount);
+	        $wc_order->set_currency($currency);
+	        $wc_order->add_meta_data("_paypal_order_id", $result["gateway_order_id"]);
+	        $wc_order->save();
+
+	        return rest_ensure_response([
             'success'          => true,
             'gateway'          => $gateway,
             'client_token'     => $result['client_token'],
@@ -357,10 +370,10 @@ function ab_receiver_create_payment($request) {
  * Create PayPal Order via REST API
  */
 function ab_receiver_create_paypal_order($amount, $currency, $order_ref) {
-    $settings = get_option('woocommerce_ppcp-gateway_settings', []);
+    $settings = get_option('woocommerce-ppcp-data-common', []);
     $client_id = $settings['client_id'] ?? '';
     $secret    = $settings['client_secret'] ?? '';
-    $is_sandbox = ($settings['sandbox'] ?? 'yes') === 'yes';
+    $is_sandbox = ($settings['use_sandbox'] ?? true);
 
     if (empty($client_id) || empty($secret)) {
         throw new Exception('PayPal is not configured on this B-site');
@@ -557,3 +570,21 @@ register_activation_hook(__FILE__, function() {
 register_deactivation_hook(__FILE__, function() {
     flush_rewrite_rules();
 });
+
+function ab_receiver_webhook($request) {
+    $body = $request->get_body();
+    $data = json_decode($body, true);
+    if (!$data || empty($data['event_type'])) {
+        return new WP_Error('invalid_data', 'Invalid webhook data', ['status' => 400]);
+    }
+    $event_type = sanitize_text_field($data['event_type']);
+    $paypal_order_id = $data['resource']['id'] ?? '';
+    if ($paypal_order_id && in_array($event_type, ['CHECKOUT.ORDER.APPROVED','PAYMENT.CAPTURE.COMPLETED'])) {
+        $orders = wc_get_orders(['meta_key' => '_paypal_order_id', 'meta_value' => $paypal_order_id, 'limit' => 1]);
+        if (!empty($orders)) {
+            $orders[0]->payment_complete($paypal_order_id);
+            $orders[0]->add_order_note('PayPal webhook: ' . $event_type);
+        }
+    }
+    return rest_ensure_response(['status' => 'received', 'event' => $event_type]);
+}
